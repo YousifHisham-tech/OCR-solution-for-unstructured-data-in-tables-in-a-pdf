@@ -1,729 +1,187 @@
-# OCR Solution for Unstructured Data in Tables in PDF
+# OCR Solution for Unstructured Data in Tables in a PDF
 
-> A project that evolved from a **custom Computer Vision + OCR pipeline (Version 1)** into a more flexible **AI/Vision-based table extraction approach (Version 2)** for converting unstructured PDF tables into structured data.
-
----
-
-# 📌 Project Overview
-
-Extracting structured information from PDF tables is a challenging task, especially when dealing with:
-
-* Scanned PDF documents
-* Image-based tables
-* Different table layouts
-* Complex row and column structures
-* Merged cells
-* Noisy documents
-* Tables with different numbers of columns
-* Tables containing technical or business information
-
-The project was developed in **two major versions**.
-
-The first version focuses on building a **customized Computer Vision and OCR pipeline** that explicitly detects the table structure.
-
-The second version introduces a more flexible **AI-based approach using Vision Models and Prompt Engineering**, reducing the amount of manually designed image-processing logic required to understand different table layouts.
+> Extracting structured data from unstructured PDF tables — evolved from a **custom Computer Vision + OCR pipeline (v1)** into a **Vision-AI + Prompt Engineering approach (v2)**.
 
 ---
 
-# 🟢 Version 1 — Customized Computer Vision + OCR Solution
-
-## Overview
-
-Version 1 was designed as a traditional document-processing pipeline.
-
-The main idea was to **understand the table structure using Computer Vision first**, then extract the text from the detected cells using OCR.
-
-Instead of directly applying OCR to the entire PDF page, the system breaks the problem into several stages.
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Repository Structure](#repository-structure)
+- [Version 1 — Computer Vision + OCR](#version-1--computer-vision--ocr)
+- [Version 2 — Vision AI + Prompt Engineering](#version-2--vision-ai--prompt-engineering)
+- [Version 1 vs Version 2](#version-1-vs-version-2)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Example Output](#example-output)
+- [Known Limitations](#known-limitations)
+- [Roadmap](#roadmap)
+- [Technologies](#technologies)
+- [Author](#author)
+- [License](#license)
 
 ---
 
-## Version 1 Workflow
+## Project Overview
 
-```text
-PDF Document
-      │
-      ▼
-Convert PDF Pages to Images
-      │
-      ▼
-Image Preprocessing
-      │
-      ▼
-Detect Horizontal Lines
-      │
-      ▼
-Detect Vertical Lines
-      │
-      ▼
-Reconstruct Table Structure
-      │
-      ▼
-Detect Table Boundaries
-      │
-      ▼
-Detect Cells
-      │
-      ▼
-Crop Individual Cells
-      │
-      ▼
-Remove / Suppress Table Lines
-      │
-      ▼
-OCR on Each Cell
-      │
-      ▼
-Extract Text
-      │
-      ▼
-Reconstruct Rows & Columns
-      │
-      ▼
-Structured Data
-      │
-      ▼
-CSV
+Extracting structured information from PDF tables is hard when documents involve:
+
+- Scanned or image-based tables
+- Inconsistent layouts and merged cells
+- Variable numbers of columns
+- Technical/business specification tables with no fixed schema
+
+This project explores two different solutions to that problem:
+
+| | Approach |
+|---|---|
+| **v1** | Deterministic Computer Vision pipeline: detect gridlines → reconstruct table structure → crop cells → OCR each cell |
+| **v2** | Vision-AI pipeline: detect and crop whole tables with Computer Vision, then hand the cropped image to a vision-language model guided by a strict extraction prompt |
+
+v1 gives full explicit control over every step. v2 trades some of that control for the ability to generalize to new table layouts without writing new code for each one.
+
+---
+
+## Repository Structure
+
 ```
-
----
-
-# 🔍 How Version 1 Works
-
-## 1. PDF Processing
-
-The PDF is first converted into page images.
-
-```text
-PDF
- ↓
-Page 1
-Page 2
-Page 3
-...
-```
-
-This allows the system to process the document using Computer Vision techniques.
-
----
-
-## 2. Image Preprocessing
-
-The page image is prepared for table detection.
-
-Typical operations include:
-
-* Grayscale conversion
-* Thresholding
-* Binary image processing
-* Noise reduction
-* Morphological operations
-
-The objective is to create an image representation where the table structure can be detected more reliably.
-
----
-
-## 3. Horizontal Line Detection
-
-The system searches for horizontal lines that represent row boundaries.
-
-```text
-────────────────────────────────
-────────────────────────────────
-────────────────────────────────
-```
-
-These lines provide information about where rows start and end.
-
----
-
-## 4. Vertical Line Detection
-
-The system also detects vertical lines that represent column boundaries.
-
-```text
-│         │         │         │
-│         │         │         │
-│         │         │         │
-```
-
-The horizontal and vertical structures are then combined.
-
----
-
-## 5. Table Structure Reconstruction
-
-By combining the detected horizontal and vertical lines, the system attempts to reconstruct the table grid.
-
-```text
-┌──────────────┬──────────────┬──────────────┐
-│              │              │              │
-├──────────────┼──────────────┼──────────────┤
-│              │              │              │
-├──────────────┼──────────────┼──────────────┤
-│              │              │              │
-└──────────────┴──────────────┴──────────────┘
-```
-
-This gives the system an explicit representation of the table's rows and columns.
-
----
-
-## 6. Cell Detection
-
-Once the table structure is reconstructed, individual cells can be identified.
-
-For example:
-
-```text
-┌──────────────┬──────────────┐
-│    Cell 1    │    Cell 2    │
-├──────────────┼──────────────┤
-│    Cell 3    │    Cell 4    │
-└──────────────┴──────────────┘
-```
-
-Each cell is cropped separately.
-
----
-
-## 7. Table-Line Removal
-
-The borders of the table can interfere with OCR.
-
-Therefore, the detected lines are removed or suppressed before OCR is performed.
-
-```text
-Cell
- ↓
-Detect borders
- ↓
-Remove / suppress borders
- ↓
-Clean text region
-```
-
----
-
-## 8. OCR
-
-OCR is then applied to each individual cell.
-
-For example:
-
-```text
-Cell Image
-    ↓
-   OCR
-    ↓
-"150 HP"
-```
-
-The OCR output is associated with the corresponding cell position.
-
----
-
-## 9. Data Reconstruction
-
-After recognizing all cells, the extracted text is placed back into its original row and column positions.
-
-Example:
-
-```text
-Product | Engine | Power
---------|--------|-------
-Model A | 2.0L   | 150 HP
-Model B | 1.6L   | 120 HP
-```
-
-The final result can then be exported as structured data.
-
----
-
-# ⚠️ Challenges of Version 1
-
-Although Version 1 provides detailed control over the extraction pipeline, it depends heavily on manually designed Computer Vision logic.
-
-The system must explicitly handle:
-
-* Horizontal line detection
-* Vertical line detection
-* Table boundaries
-* Cell boundaries
-* Noise
-* Line removal
-* Row ordering
-* Column ordering
-* Different table layouts
-* Merged cells
-
-This makes the approach powerful for controlled table structures, but more difficult to generalize to highly variable tables.
-
----
-
-# 🔵 Version 2 — AI / Vision-Based Table Extraction
-
-## Overview
-
-Version 2 was introduced to overcome some of the limitations of the highly customized Computer Vision pipeline.
-
-Instead of explicitly programming the complete table interpretation process, Version 2 uses a **vision-capable AI model together with Prompt Engineering**.
-
-The model receives the table image and is instructed to understand its structure and convert the information into a structured representation.
-
-The focus changes from:
-
-> **"Programmatically detect every part of the table."**
-
-to:
-
-> **"Ask a vision model to understand the table and produce structured data according to strict rules."**
-
----
-
-# Version 2 Workflow
-
-```text
-PDF Document
-      │
-      ▼
-Convert PDF Pages / Tables to Images
-      │
-      ▼
-Provide Table Image to Vision AI
-      │
-      ▼
-Prompt Engineering
-      │
-      ▼
-Table Structure Understanding
-      │
-      ▼
-Identify Rows / Columns / Cells
-      │
-      ▼
-Extract Table Content
-      │
-      ▼
-Normalize / Organize Data
-      │
-      ▼
-Structured Output
-      │
-      ▼
-CSV / JSON
-```
-
----
-
-# 🧠 How Version 2 Works
-
-## 1. Input Table Image
-
-The table is provided directly to a vision-capable AI model.
-
-The model can visually analyze:
-
-* Rows
-* Columns
-* Headers
-* Cells
-* Merged regions
-* Relationships between values
-
----
-
-## 2. Prompt Engineering
-
-A detailed prompt defines how the model should process the table.
-
-The prompt can specify:
-
-* How to identify the table structure
-* How to identify product/model names
-* How to interpret headers
-* How to handle merged cells
-* How to normalize specifications
-* How to preserve source information
-* How to handle different layouts
-* What output format should be produced
-
----
-
-## 3. Table Understanding
-
-The model attempts to understand the table as a complete visual structure rather than processing each cell independently.
-
-For example:
-
-```text
-┌────────────┬───────────┬─────────────┐
-│ Product    │ Engine    │ Power       │
-├────────────┼───────────┼─────────────┤
-│ Model A    │ 2.0L      │ 150 HP      │
-│ Model B    │ 1.6L      │ 120 HP      │
-└────────────┴───────────┴─────────────┘
-```
-
-The model interprets the semantic relationship:
-
-```text
-Model A
- ├── Engine → 2.0L
- └── Power  → 150 HP
-```
-
----
-
-## 4. Structured Output
-
-The model can then return the extracted information in a structured format.
-
-Example:
-
-```json
-{
-  "Product": "Model A",
-  "Engine": "2.0L",
-  "Power": "150 HP"
-}
-```
-
-Multiple records can then be combined into a table or CSV.
-
----
-
-# 🔥 Main Difference Between Version 1 and Version 2
-
-The fundamental difference is **where the table understanding happens**.
-
-### Version 1
-
-Table understanding is mainly performed through **explicit Computer Vision logic**.
-
-```text
-Image
- ↓
-Computer Vision
- ↓
-Detect lines
- ↓
-Detect table
- ↓
-Detect cells
- ↓
-OCR
- ↓
-Reconstruct structure
- ↓
-CSV
-```
-
-### Version 2
-
-Table understanding is primarily performed by a **Vision AI model guided by Prompt Engineering**.
-
-```text
-Image
- ↓
-Vision AI
- ↓
-Understand table
- ↓
-Extract information
- ↓
-Normalize / structure
- ↓
-CSV / JSON
-```
-
----
-
-# ⚖️ Version 1 vs Version 2
-
-| Aspect                 | Version 1                | Version 2                       |
-| ---------------------- | ------------------------ | ------------------------------- |
-| Main technology        | Computer Vision + OCR    | Vision AI + Prompt Engineering  |
-| Table detection        | Explicitly programmed    | AI-based understanding          |
-| Cell detection         | Computer Vision          | AI interpretation               |
-| OCR                    | Dedicated OCR stage      | Vision model extracts text      |
-| Layout handling        | Requires custom logic    | More flexible                   |
-| Merged cells           | Difficult to handle      | Can be interpreted semantically |
-| New table layouts      | May require code changes | Prompt can often generalize     |
-| Control                | High                     | Higher-level                    |
-| Development complexity | Higher                   | Lower for complex layouts       |
-| Explainability         | More explicit            | Model-dependent                 |
-| Generalization         | More dependent on rules  | More adaptable                  |
-
----
-
-# 🔄 Evolution of the Project
-
-The development process can be summarized as:
-
-```text
-VERSION 1
-Customized Computer Vision Pipeline
-          │
-          │
-          ▼
-Identify limitations
-          │
-          ▼
-Need for greater flexibility
-          │
-          ▼
-VERSION 2
-Vision AI + Prompt Engineering
-```
-
-Version 1 established the fundamental understanding of the table-extraction problem.
-
-Version 2 builds on that understanding by exploring whether modern Vision AI models can handle the structural and semantic interpretation of tables more flexibly.
-
----
-
-# 🏗️ Architecture Comparison
-
-## Version 1 Architecture
-
-```text
-             PDF
-              │
-              ▼
-       Image Conversion
-              │
-              ▼
-      Image Preprocessing
-              │
-        ┌─────┴─────┐
-        ▼           ▼
- Horizontal      Vertical
- Line Detection  Line Detection
-        │           │
-        └─────┬─────┘
-              ▼
-       Table Structure
-              │
-              ▼
-        Cell Detection
-              │
-              ▼
-       Cell Preprocessing
-              │
-              ▼
-             OCR
-              │
-              ▼
-      Data Reconstruction
-              │
-              ▼
-             CSV
-```
-
----
-
-## Version 2 Architecture
-
-```text
-             PDF
-              │
-              ▼
-       Image Conversion
-              │
-              ▼
-          Table Image
-              │
-              ▼
-          Vision AI
-              │
-              ▼
-    Prompt-Guided Analysis
-              │
-              ▼
-    Table Understanding
-              │
-              ▼
-   Data Extraction & Mapping
-              │
-              ▼
-    Normalization / Structuring
-              │
-              ▼
-         CSV / JSON
-```
-
----
-
-# 🎯 Why Version 2?
-
-Version 2 was developed to address an important challenge:
-
-> Real-world documents rarely follow one fixed table structure.
-
-A Computer Vision pipeline can work very well when the structure is known and predictable.
-
-However, when documents introduce:
-
-* New columns
-* Different headers
-* Merged cells
-* Different table organizations
-* Additional specifications
-* Different layouts
-
-the traditional approach may require additional rules and code.
-
-Version 2 explores a more dynamic approach where the model can interpret the table structure from the visual input and follow a set of general extraction rules.
-
----
-
-# 📊 Example
-
-## Version 1
-
-```text
-PDF
- ↓
-Image Processing
- ↓
-Line Detection
- ↓
-Cell Detection
- ↓
-OCR
- ↓
-Cell Text
- ↓
-Reconstruction
- ↓
-CSV
-```
-
-## Version 2
-
-```text
-PDF
- ↓
-Table Image
- ↓
-Vision AI
- ↓
-Prompt
- ↓
-Table Understanding
- ↓
-Structured Data
- ↓
-CSV
-```
-
----
-
-# 🚀 Future Direction
-
-The two versions can eventually be combined into a hybrid architecture.
-
-```text
-                    PDF
-                     │
-                     ▼
-              Document Analysis
-                     │
-                     ▼
-              Table Detection
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   Traditional CV          Vision AI
-          │                     │
-          └──────────┬──────────┘
-                     ▼
-             Structure Validation
-                     │
-                     ▼
-              OCR / Extraction
-                     │
-                     ▼
-             Data Normalization
-                     │
-                     ▼
-              Quality Validation
-                     │
-                     ▼
-                CSV / JSON
-```
-
-This could combine the **control and determinism of Computer Vision** with the **flexibility and semantic understanding of modern Vision AI**.
-
----
-
-# 🛠️ Technologies
-
-### Version 1
-
-* Python
-* OpenCV
-* NumPy
-* OCR
-* PDF processing
-* Pandas
-* Jupyter Notebook
-
-### Version 2
-
-* Python
-* Vision-capable AI models
-* Prompt Engineering
-* PDF / image processing
-* Structured data generation
-
----
-
-# 📁 Repository Structure
-
-```text
 OCR-solution-for-unstructured-data-in-tables-in-a-pdf/
 │
 ├── README.md
-│
 ├── customized solution to extract data from tables in the pdf
-│   in a structured form for business needs.ipynb
-│
+│   in a structured form for business needs.ipynb      # Version 1
 └── convert tables from pdf to csv file using prompt engineering
-    to solve business problem.ipynb
+    to solve business problem.ipynb                     # Version 2
 ```
 
 ---
 
-# 📌 Project Status
+## Version 1 — Computer Vision + OCR
 
-**Version 1:** Customized Computer Vision + OCR prototype
+Table understanding happens entirely through explicit image-processing logic — no ML model interprets the table itself.
 
-**Version 2:** Vision AI + Prompt Engineering approach
+```
+PDF → page images → preprocessing → detect horizontal/vertical lines
+    → reconstruct table grid → detect & crop cells → remove border lines
+    → OCR each cell → reassemble rows/columns → CSV
+```
 
-The project is currently focused on experimentation, evaluation, and evolution toward a more generalized table-extraction system.
+**Strengths:** deterministic, fully explainable, no dependency on an external AI model at inference time.
+**Trade-off:** every new table layout (new merged-cell pattern, new column arrangement) may require new detection rules.
+
+## Version 2 — Vision AI + Prompt Engineering
+
+Table understanding happens inside a vision-capable AI model, guided by a prompt that defines strict extraction rules (attribute normalization, merge-safety rules, a zero-hallucination/strict-null policy, and an output contract requiring raw CSV).
+
+```
+PDF → page images → detect & crop table regions (Computer Vision)
+    → send cropped table image(s) to a vision model with the extraction prompt
+    → model returns normalized, structured CSV
+```
+
+**Strengths:** generalizes to new layouts without new code; handles merged cells and open-ended schemas better.
+**Trade-off:** correctness depends on the model and the prompt; needs a null/hallucination policy to stay trustworthy, and needs accuracy spot-checks since there's no deterministic ground truth.
 
 ---
 
-# 👨‍💻 Author
+## Version 1 vs Version 2
+
+| Aspect | Version 1 | Version 2 |
+|---|---|---|
+| Main technology | Computer Vision + OCR | Vision AI + Prompt Engineering |
+| Table/cell detection | Explicitly programmed | AI-based understanding |
+| Merged cells | Difficult to handle | Interpreted semantically |
+| New table layouts | May require code changes | Prompt can often generalize |
+| Control | High, explicit | Higher-level, model-dependent |
+| Explainability | Every step traceable | Depends on the model's output |
+
+---
+
+## Setup
+
+```bash
+git clone https://github.com/YousifHisham-tech/OCR-solution-for-unstructured-data-in-tables-in-a-pdf
+cd OCR-solution-for-unstructured-data-in-tables-in-a-pdf
+
+pip install pandas numpy opencv-python pillow pdf2image tqdm google-genai
+```
+
+**External dependency:** [Poppler](https://poppler.freedesktop.org/) must be installed locally — `pdf2image` shells out to Poppler's `pdftoppm`/`pdfinfo` binaries. Point the notebook's `poppler_path` variable at its `bin/` directory.
+
+**API key (Version 2 only):** the Gemini call requires an API key. Set it as an environment variable rather than hardcoding it in the notebook:
+
+```bash
+export GEMINI_API_KEY="your-key-here"
+```
+
+```python
+import os
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+```
+
+---
+
+## Usage
+
+1. Open the notebook for the version you want to run.
+2. Set the input/output folder variables (`pdf_folder`, output folder names) at the top.
+3. Tune detection thresholds (`dpi`, `least_horizontal_and_vertical_length`, `thickness_thresold`) if tables in your documents aren't being detected reliably.
+4. Run all cells. Each PDF gets its own output folder containing the rendered pages, cropped table images, and a final `output.csv`.
+
+---
+
+## Example Output
+
+```csv
+model,tv_inch_size,resolution,power_consumption_tv_on_w,net_weight_with_stand_kg
+X55-A1,55,4K UHD,120,18.4
+X65-A1,65,4K UHD,150,22.1
+```
+
+*(Illustrative — actual columns depend on the source document's schema.)*
+
+---
+
+## Known Limitations
+
+Being upfront about the current state of both pipelines:
+
+- **No automated error handling** around OCR/API calls yet — a single bad page or failed API call can interrupt a batch.
+- **No accuracy validation loop** — Version 2's output has not yet been benchmarked against ground truth, so extraction accuracy is currently based on spot-checking, not measurement.
+- **Version 2 sends all cropped tables from a PDF in a single model call** — large, table-heavy PDFs may need to be batched to stay within model context/image limits.
+- **Version 1's cell/line detection thresholds are tuned per document style** — they may need retuning for documents with very different table styles or scan quality.
+
+---
+
+## Roadmap
+
+The two versions are complementary, not competing — the long-term direction is a hybrid pipeline:
+
+```
+PDF → Document Analysis → Table Detection
+    → [Computer Vision structure] + [Vision AI understanding]
+    → Structure Validation → Extraction → Normalization
+    → Quality Validation → CSV / JSON
+```
+
+Combining v1's deterministic structure detection with v2's semantic flexibility, with a validation layer that cross-checks the two.
+
+---
+
+## Technologies
+
+**Version 1:** Python, OpenCV, NumPy, OCR (Tesseract), pandas, Jupyter
+**Version 2:** Python, Vision-capable AI models (Gemini), Prompt Engineering, pandas, Jupyter
+
+---
+
+## Author
 
 **Yousif Hisham**
-
-Artificial Intelligence Student
-Faculty of Computers and Artificial Intelligence
-Benha University
-
-GitHub:
-https://github.com/YousifHisham-tech
+AI Student, Faculty of Computers and Artificial Intelligence, Benha University
+GitHub: [@YousifHisham-tech](https://github.com/YousifHisham-tech)
 
 ---
 
-# ⭐ Support
-
-If you find this project useful or interesting, consider giving the repository a ⭐ on GitHub.
-
----
-
-## 📄 License
+## License
 
 This project is intended for educational and research purposes.

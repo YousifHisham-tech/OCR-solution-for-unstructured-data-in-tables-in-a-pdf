@@ -184,4 +184,4 @@ GitHub: [@YousifHisham-tech](https://github.com/YousifHisham-tech)
 
 ## License
 
-This project is intended for educational and research purposes.
+This project is intended for business needs
